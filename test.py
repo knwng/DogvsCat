@@ -83,7 +83,7 @@ with tf.Session(config=config) as sess:
     merged_summary = tf.summary.merge_all()
     summary_writer = tf.summary.FileWriter(args.train_dir, sess.graph)
     
-    submission_fn = open('submission_{}.csv'.format(args.checkpoint),'w')
+    submission_fn = open(os.path.join(args.train_dir, 'submission_{}.csv'.format(args.checkpoint)),'w')
     sub_writer = csv.writer(submission_fn)
     sub_writer.writerow(['id', 'label'])
 
