@@ -103,7 +103,8 @@ def get_batch(content, num_epochs, batch_size, rgb_mean, image_size, container_n
         image = tf.image.resize_images(image, [image_size, image_size])
         image = (image - rgb_mean) / 128.
         image_batch, label_batch = tf.train.shuffle_batch([image, label], batch_size=batch_size, num_threads=6,
-                                                            capacity=3 * batch_size+500, min_after_dequeue=500)
+                                                            capacity=3 * batch_size+500, min_after_dequeue=500,
+                                                            allow_smaller_final_batch=True)
     return image_batch, label_batch 
 
 train_image, train_label = get_batch([args.train_dataset], args.epoch, args.batch_size, _RGB_MEAN, args.image_size, 'trainqueue')

@@ -11,6 +11,7 @@ import time
 import cv2
 import logging
 import csv
+import scipy
 
 slim = tf.contrib.slim
 
@@ -23,7 +24,7 @@ ap.add_argument('--train_dir', type=common.readable_directory, required=True)
 ap.add_argument('--checkpoint', required=True)
 ap.add_argument('--learning_rate', default=1e-4, type=common.positive_float)
 ap.add_argument('--epoch', default=1, type=common.positive_int)
-ap.add_argument('--batch_size', default=200, type=common.positive_int)
+ap.add_argument('--batch_size', default=1, type=common.positive_int)
 ap.add_argument('--image_size', default=224, type=common.positive_int)
 
 args = ap.parse_args()
@@ -55,7 +56,7 @@ def get_batch(content, num_epochs, batch_size, rgb_mean, image_size):
     image = (image - rgb_mean) / 128.
     # image = image - _RGB_MEAN
     image_batch, fn_batch = tf.train.batch([image, dir_], batch_size=batch_size, num_threads=1,
-                                           capacity=3 * batch_size+500, 
+                                           capacity=3 * batch_size+500,
                                            allow_smaller_final_batch=True)
     return image_batch, fn_batch 
 
@@ -82,27 +83,39 @@ with tf.Session(config=config) as sess:
 
     merged_summary = tf.summary.merge_all()
     summary_writer = tf.summary.FileWriter(args.train_dir, sess.graph)
-    
-    submission_fn = open('submission_{}.csv'.format(args.checkpoint),'w')
-    sub_writer = csv.writer(submission_fn)
-    sub_writer.writerow(['id', 'label'])
 
     start_time = time.time()
     counter = 0
     try:
         while not coord.should_stop():
             _images, _fns = sess.run([test_image, test_fn])
-            _predictions = sess.run(predictions, feed_dict={images: _images})
-            for i in range(len(_fns)):
-                sub_writer.writerow([_fns[i].split('/')[-1].split('.')[0], round(_predictions[i][0], 2)])
-                counter += 1
-            print('{} images processed'.format(counter))
-            submission_fn.flush()
+            _input_features, _bottleneck_features = sess.run([endpoints['Conv2d_1a_3x3'], endpoints['Conv2d_3b_1x1']], feed_dict={images: _images})
+            _input_feature_enlarge = scipy.ndimage.interpolation.zoom(_input_features, (1, 2, 2, 1))
+            _bottleneck_features_enlarge = scipy.ndimage.interpolation.zoom(_bottleneck_features, (1, 4, 4, 1))
+            print('Input Feature: {}'.format(_input_feature_enlarge.shape))
+            print('Bottleneck Feature: {}'.format(_bottleneck_features_enlarge.shape))
+            print('File Name: {}'.format(_fns))
+            _input_list = np.split(_input_feature_enlarge[0], 32, 2)
+            _bottleneck_list = np.split(_bottleneck_features_enlarge[0], 80, 2)
+            for i in range(len(_input_list)):
+                _max = max(_input_list[i].flatten())
+                _min = min(_input_list[i].flatten())
+                normed = 255 * ((_input_list[i] - _min) / (_max - _min) )
+                print('Data | max: {} | min: {}'.format(max(normed.flatten()), min(normed.flatten())))
+                cv2.imwrite(os.path.join('tmp', 'Input_Feature-{}.jpg'.format(i)), normed.astype(np.uint8))
+            for i in range(len(_bottleneck_list)):
+                _max = max(_bottleneck_list[i].flatten())
+                _min = min(_bottleneck_list[i].flatten())
+                normed = 255 * ((_bottleneck_list[i] - _min) / (_max - _min) )
+                cv2.imwrite(os.path.join('tmp', 'Bottleneck_Feature-{}.jpg'.format(i)), normed.astype(np.uint8))
+            origin_img = cv2.imread(_fns[0])
+            origin_img = cv2.resize(origin_img, (224, 224))
+            cv2.imwrite(os.path.join('tmp', 'origin_img.jpg'), origin_img)
+            break
     except tf.errors.OutOfRangeError:
         tf.logging.info('Finished')
     finally:
         elapsed_time = time.time() - start_time
-        submission_fn.close()
         coord.request_stop()
     coord.join(threads)
     sess.close()
