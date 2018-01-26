@@ -101,8 +101,10 @@ ENV/
 .mypy_cache/
 
 # project specify
-dataset/*
-!dataset/.gitkeep
+dataset/MergedDataset
+dataset/Oxford-IIIT_Pet
+dataset/dogsvscats
+dataset/assign
 experiments/*
 !experiments/.gitkeep
 pretrained_model/*
