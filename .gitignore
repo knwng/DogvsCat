@@ -102,10 +102,13 @@ ENV/
 
 # project specify
 dataset/*
-models/*
+!dataset/.gitkeep
 experiments/*
+!experiments/.gitkeep
 pretrained_model/*
+!pretrained_model/.gitkeep
 venv
+venv1
 *.sw[a-z]
 *.pyc
 *.tar.*
