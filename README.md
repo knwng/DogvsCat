@@ -54,7 +54,7 @@ dataset/train/dog.2.jpg 1
 
 ​	After datasets and pretrained model are prepared, you can train the model just run
 
-```python
+```bash
 ./train.py \
 --train_dataset dataset/train.txt \
 --val_dataset dataset/val.txt \
