@@ -13,6 +13,8 @@ Requirements can be installed by
 pip install -r requirements.txt
 ```
 
+Use `virtualenv venv` to manage python virtual environment is a better choice
+
 ## Dataset
 
 ---
@@ -102,6 +104,13 @@ If you want to generate submission for the *Dogs vs Cats Competition*, you can u
 --batch_size 128
 ```
 
+The items in *dataset/test.txt* should arrange as follows:
+
+```bash
+dataset/1.jpg
+dataset/2.jpg
+```
+
 If you have several models, you can use simple ensembling technique to improve your performance:
 
 ```bash
@@ -117,3 +126,8 @@ If you have several models, you can use simple ensembling technique to improve y
 --submission_name submission.csv
 ```
 
+## Tools
+
+---
+
+There are also some tools for K-fold cross validation and ensembling, which will be completed soon.
