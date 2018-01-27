@@ -21,7 +21,6 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--test_dataset', type=common.readable_directory, required=True)
 ap.add_argument('--train_dir', type=common.readable_directory, required=True)
 ap.add_argument('--checkpoint', required=True)
-ap.add_argument('--learning_rate', default=1e-4, type=common.positive_float)
 ap.add_argument('--epoch', default=1, type=common.positive_int)
 ap.add_argument('--batch_size', default=200, type=common.positive_int)
 ap.add_argument('--image_size', default=224, type=common.positive_int)
@@ -41,19 +40,14 @@ def get_batch(content, num_epochs, batch_size, rgb_mean, image_size):
                                                  shuffle=False,
                                                  num_epochs=num_epochs,
                                                  capacity=batch_size)
-    # value = train_queue.dequeue()
     reader = tf.TextLineReader()
     key, value = reader.read(dataqueue)
-    # dir_, label = tf.decode_csv(records=value, record_defaults=[["string"], ["string"]], field_delim=" ")
     dir_ = value
-    # label = tf.one_hot(tf.string_to_number(label, tf.int32), depth=2, dtype=tf.float32)
     imagecontent = tf.read_file(dir_)
     image = tf.image.decode_png(imagecontent, channels=3)
-    # image = tf.image.decode_jpeg(imagecontent, channels=3)
     image = tf.cast(image, tf.float32)
     image = tf.image.resize_images(image, [image_size, image_size])
     image = (image - rgb_mean) / 128.
-    # image = image - _RGB_MEAN
     image_batch, fn_batch = tf.train.batch([image, dir_], batch_size=batch_size, num_threads=1,
                                            capacity=3 * batch_size+500, 
                                            allow_smaller_final_batch=True)

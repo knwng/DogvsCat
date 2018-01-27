@@ -18,7 +18,6 @@ config.gpu_options.allow_growth = True
 slim = tf.contrib.slim
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--is_train', action='store_true', default=True)
 ap.add_argument('--resume', action='store_true', default=False)
 ap.add_argument('--train_dataset', type=common.readable_directory, required=True)
 ap.add_argument('--val_dataset', type=common.readable_directory, required=True)
@@ -36,10 +35,7 @@ if not os.path.isdir(args.train_dir):
 
 _RGB_MEAN = [123.68, 116.78, 103.94]
 
-train_fn = args.train_dataset
-val_fn = args.val_dataset
 time_identifier = time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())
-
 log = logging.getLogger('tensorflow')
 log.setLevel(logging.INFO)
 fh = logging.FileHandler(os.path.join(args.train_dir, '{}_{}.log'.format('log', time_identifier)))
@@ -75,21 +71,16 @@ def validation(sess, val_iter):
         acc, op_acc = tf.get_default_graph().get_tensor_by_name('val_acc/value:0'), tf.get_default_graph().get_tensor_by_name('val_acc/update_op:0')
         precision, op_precision = tf.get_default_graph().get_tensor_by_name('val_precision/value:0'), tf.get_default_graph().get_tensor_by_name('val_precision/update_op:0')
         recall, op_recall = tf.get_default_graph().get_tensor_by_name('val_recall/value:0'), tf.get_default_graph().get_tensor_by_name('val_recall/update_op:0')
-    # coord = tf.train.Coordinator()
-    # threads = tf.train.start_queue_runners(sess=sess, coord=coord)
     image, label = val_iter.get_next()
     sess.run(val_iter.initializer)
     try:
-        # while not coord.should_stop():
         while True:
             _images, _labels = sess.run([image, label])
             sess.run([op_acc, op_precision, op_recall], feed_dict={image_op: _images, label_op: _labels})
     except tf.errors.OutOfRangeError:
         pass
     finally:
-        # coord.request_stop()
         _acc, _precision, _recall = sess.run([acc, precision, recall])
-    # coord.join(threads)
     return _acc, _precision, _recall
 
 with tf.contrib.slim.arg_scope(inception_resnet_v2_arg_scope()):
@@ -109,7 +100,6 @@ learning_rate = tf.train.exponential_decay(
         decay_rate=0.96, 
         staircase=True)
 tf.summary.scalar('learning_rate', learning_rate)
-# loss = tf.losses.softmax_cross_entropy(labels, logits)
 loss = tf.losses.log_loss(labels, predictions, weights=10)
 tf.summary.scalar('loss', loss)
 metric_acc, op_acc = tf.metrics.accuracy(tf.argmax(labels, 1), tf.argmax(predictions, 1), name='train_acc')
@@ -145,25 +135,16 @@ with tf.Session(config=config) as sess, open(train_record_fn, 'w') as ftrain, op
     val_writer = csv.writer(fval)
     val_writer.writerow(['global_step', 'accuracy', 'precision', 'recall'])
 
-    # coord = tf.train.Coordinator()
-    # threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-
     merged_summary = tf.summary.merge_all()
     summary_writer = tf.summary.FileWriter(args.train_dir, sess.graph)
     train_image, train_label = train_iter.get_next()
 
     try:
-        # while not coord.should_stop():
         for _epoch in range(int(args.epoch)):
             sess.run(train_iter.initializer)
             while True:
                 try:
                     start_time = time.time()
-                    '''
-                    _label, _image = sess.run([label_batch, images])
-                    _input_layer, _features = sess.run([endpoints['Conv2d_1a_3x3'], endpoints['Conv2d_7b_1x1']])
-                    _lr = sess.run([learning_rate])
-                    '''
                     _images, _labels = sess.run([train_image, train_label])
                     _, _lr, _summary, _step, _acc, _loss = sess.run([train_op, learning_rate, merged_summary, global_step, op_acc, loss], feed_dict={images: _images, labels: _labels})
                     elapsed_time = time.time() - start_time
@@ -174,9 +155,6 @@ with tf.Session(config=config) as sess, open(train_record_fn, 'w') as ftrain, op
                         ckpt = ckpt_saver.save(sess, os.path.join(args.train_dir, 'model'), global_step=_step)
                         tf.logging.info('Save ckpt-{} in {}'.format(_step, ckpt))
                     if _step % 500 == 0:
-                        # _images, _labels = sess.run([val_image, val_label])
-                        # _eval_acc = sess.run(eval_op_acc, feed_dict={images: _images, labels: _labels})
-                        # val_writer.writerow([_step, _eval_acc])
                         _eval_acc, _eval_p, _eval_r = validation(sess, val_iter)
                         val_writer.writerow([_step, _eval_acc, _eval_p, _eval_r])
                         fval.flush()
@@ -188,9 +166,7 @@ with tf.Session(config=config) as sess, open(train_record_fn, 'w') as ftrain, op
     except tf.errors.OutOfRangeError:
         tf.logging.info('Finished')
     finally:
-        # coord.request_stop()
         ckpt = ckpt_saver.save(sess, os.path.join(args.train_dir, 'model'), global_step=tf.train.get_global_step())
         tf.logging.info('Save ckpt in: {}'.format(ckpt))
-    # coord.join(threads)
     sess.close()
 
